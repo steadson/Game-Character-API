@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Add/Edit Character - Game Character API Admin</title>
+    <link rel="stylesheet" href="/static/css/admin.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <div class="dashboard-container">
+        <!-- Sidebar -->
+        <div class="sidebar">
+            <div class="sidebar-header">
+                <h2>Game Character API</h2>
+            </div>
+            
+            <div class="sidebar-menu">
+                <a href="/dashboard" class="menu-item">
+                    <i class="fas fa-tachometer-alt"></i> Dashboard
+                </a>
+                <a href="/characters" class="menu-item active">
+                    <i class="fas fa-gamepad"></i> Characters
+                </a>
+                <a href="/documents" class="menu-item">
+                    <i class="fas fa-file-alt"></i> Documents
+                </a>
+                <a href="/settings" class="menu-item">
+                    <i class="fas fa-cog"></i> Settings
+                </a>
+                <a href="#" id="logout-btn" class="menu-item">
+                    <i class="fas fa-sign-out-alt"></i> Logout
+                </a>
+            </div>
+        </div>
+        
+        <!-- Main Content -->
+        <div class="main-content">
+            <div class="content-header">
+                <h1 id="form-title">Add New Character</h1>
+            </div>
+            
+            <!-- Error Message -->
+            <div id="error-message" class="alert alert-danger" style="display: none;"></div>
+            
+            <!-- Character Form -->
+            <div class="card">
+                <form id="character-form" enctype="multipart/form-data">
+                    <div class="form-group">
+                        <label for="name">Character Name</label>
+                        <input type="text" id="name" name="name" class="form-control" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="description">Brief Description</label>
+                        <textarea id="description" name="description" class="form-control" rows="3" required></textarea>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="attributes">Attributes (JSON format)</label>
+                        <textarea id="attributes" name="attributes" class="form-control" rows="6" required>{
+  "strength": 10,
+  "intelligence": 10,
+  "dexterity": 10,
+  "health": 100,
+  "special_abilities": []
+}</textarea>
+                        <small style="color: #666; display: block; margin-top: 5px;">Enter character attributes in JSON format.</small>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="lore">Character Lore/Background</label>
+                        <textarea id="lore" name="lore" class="form-control" rows="6" required></textarea>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="image">Character Image</label>
+                        <div class="file-upload">
+                            <label for="image" class="file-upload-label">
+                                <i class="fas fa-upload"></i> Choose File
+                            </label>
+                            <input type="file" id="image" name="image" accept="image/*">
+                            <span id="file-name" class="file-name">No file chosen</span>
+                        </div>
+                        <div id="image-preview-container" style="margin-top: 10px; display: none;">
+                            <img id="image-preview" style="max-width: 200px; max-height: 200px; border: 1px solid #ddd; border-radius: 4px;" />
+                        </div>
+                    </div>
+                    
+                    <div class="form-actions">
+                        <button type="button" id="cancel-btn" class="btn btn-secondary">Cancel</button>
+                        <button type="submit" class="btn btn-primary">Save Character</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let isEditMode = false;
+        let characterId = null;
+        
+        // Check if user is logged in
+        document.addEventListener('DOMContentLoaded', function() {
+            const token = localStorage.getItem('access_token');
+            if (!token) {
+                window.location.href = '/';
+                return;
+            }
+            
+            // Setup image preview
+            const imageInput = document.getElementById('image');
+            const fileName = document.getElementById('file-name');
+            const imagePreviewContainer = document.getElementById('image-preview-container');
+            const imagePreview = document.getElementById('image-preview');
+            
+            imageInput.addEventListener('change', function() {
+                if (this.files && this.files[0]) {
+                    fileName.textContent = this.files[0].name;
+                    
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        imagePreview.src = e.target.result;
+                        imagePreviewContainer.style.display = 'block';
+                    };
+                    reader.readAsDataURL(this.files[0]);
+                } else {
+                    fileName.textContent = 'No file chosen';
+                    imagePreviewContainer.style.display = 'none';
+                }
+            });
+            
+            // Check if we're in edit mode
+            const pathParts = window.location.pathname.split('/');
+            if (pathParts.length >= 3 && pathParts[pathParts.length - 1] === 'edit') {
+                isEditMode = true;
+                characterId = pathParts[pathParts.length - 2];
+                document.getElementById('form-title').textContent = 'Edit Character';
+                
+                // Load character data
+                loadCharacter(characterId);
+            }
+            
+            // Setup form submission
+            document.getElementById('character-form').addEventListener('submit', function(e) {
+                e.preventDefault();
+                if (isEditMode) {
+                    updateCharacter(characterId);
+                } else {
+                    createCharacter();
+                }
+            });
+            
+            // Setup cancel button
+            document.getElementById('cancel-btn').addEventListener('click', function() {
+                window.location.href = '/characters';
+            });
+            
+            // Setup logout button
+            document.getElementById('logout-btn').addEventListener('click', function(e) {
+                e.preventDefault();
+                localStorage.removeItem('access_token');
+                window.location.href = '/';
+            });
+        });
+        
+        async function loadCharacter(characterId) {
+            try {
+                const response = await fetch(`/api/v1/characters/${characterId}`, {
+                    headers: {
+                        'Authorization': `Bearer ${localStorage.getItem('access_token')}`
+                    }
+                });
+                
+                if (!response.ok) {
+                    throw new Error('Failed to load character data');
+                }
+                
+                const character = await response.json();
+                
+                // Populate form fields
+                document.getElementById('name').value = character.name;
+                document.getElementById('description').value = character.description;
+                document.getElementById('attributes').value = JSON.stringify(character.attributes, null, 2);
+                document.getElementById('lore').value = character.lore;
+                
+                // Show image preview if available
+                if (character.image_url) {
+                    document.getElementById('image-preview').src = character.image_url;
+                    document.getElementById('image-preview-container').style.display = 'block';
+                    document.getElementById('file-name').textContent = 'Current image (leave empty to keep)';
+                }
+            } catch (error) {
+                console.error('Error loading character:', error);
+                
+                // Show error message
+                const errorMessage = document.getElementById('error-message');
+                errorMessage.textContent = error.message;
+                errorMessage.style.display = 'block';
+                
+                // If unauthorized, redirect to login
+                if (error.message.includes('401')) {
+                    localStorage.removeItem('access_token');
+                    window.location.href = '/';
+                }
+            }
+        }
+        
+        async function createCharacter() {
+            try {
+                // Validate attributes JSON
+                try {
+                    JSON.parse(document.getElementById('attributes').value);
+                } catch (e) {
+                    throw new Error('Invalid JSON in attributes field');
+                }
+                
+                const formData = new FormData(document.getElementById('character-form'));
+                
+                const response = await fetch('/api/v1/characters/', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${localStorage.getItem('access_token')}`
+                    },
+                    body: formData
+                });
+                
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.detail || 'Failed to create character');
+                }
+                
+                // Redirect to characters list with success message
+                window.location.href = '/characters?success=Character created successfully';
+            } catch (error) {
+                console.error('Error creating character:', error);
+                
+                // Show error message
+                const errorMessage = document.getElementById('error-message');
+                errorMessage.textContent = error.message;
+                errorMessage.style.display = 'block';
+                
+                // If unauthorized, redirect to login
+                if (error.message.includes('401')) {
+                    localStorage.removeItem('access_token');
+                    window.location.href = '/';
+                }
+            }
+        }
+        
+        async function updateCharacter(characterId) {
+            try {
+                // Validate attributes JSON
+                try {
+                    JSON.parse(document.getElementById('attributes').value);
+                } catch (e) {
+                    throw new Error('Invalid JSON in attributes field');
+                }
+                
+                const formData = new FormData(document.getElementById('character-form'));
+                
+                const response = await fetch(`/api/v1/characters/${characterId}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Authorization': `Bearer ${localStorage.getItem('access_token')}`
+                    },
+                    body: formData
+                });
+                
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.detail || 'Failed to update character');
+                }
+                
+                // Redirect to characters list with success message
+                window.location.href = '/characters?success=Character updated successfully';
+            } catch (error) {
+                console.error('Error updating character:', error);
+                
+                // Show error message
+                const errorMessage = document.getElementById('error-message');
+                errorMessage.textContent = error.message;
+                errorMessage.style.display = 'block';
+                
+                // If unauthorized, redirect to login
+                if (error.message.includes('401')) {
+                    localStorage.removeItem('access_token');
+                    window.location.href = '/';
+                }
+            }
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Character Documentation | Game Character API Admin</title>
+    <link rel="stylesheet" href="/static/css/admin.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <div class="admin-container">
+        <div class="sidebar">
+            <div class="logo">
+                <h2>Game API Admin</h2>
+            </div>
+            <nav>
+                <ul>
+                    <li><a href="/admin/dashboard"><i class="fas fa-tachometer-alt"></i> Dashboard</a></li>
+                    <li><a href="/admin/characters"><i class="fas fa-gamepad"></i> Characters</a></li>
+                    <li><a href="/admin/documents" class="active"><i class="fas fa-file-alt"></i> Documents</a></li>
+                    <li><a href="/admin/logout"><i class="fas fa-sign-out-alt"></i> Logout</a></li>
+                </ul>
+            </nav>
+        </div>
+        
+        <div class="main-content">
+            <header>
+                <h1>Character Documentation</h1>
+                <div class="user-info">
+                    <span id="user-name">Admin User</span>
+                    <img src="https://via.placeholder.com/40" alt="User Avatar">
+                </div>
+            </header>
+            
+            <div class="content-area">
+                <div class="action-bar">
+                    <h2>Manage Documents</h2>
+                    <button class="upload-btn" id="uploadDocBtn"><i class="fas fa-plus"></i> Upload Document</button>
+                </div>
+                
+                <div class="filter-panel">
+                    <div class="filter-group">
+                        <label for="character-filter">Filter by Character:</label>
+                        <select id="character-filter">
+                            <option value="">All Characters</option>
+                            <!-- Characters will be loaded dynamically -->
+                        </select>
+                    </div>
+                    <div class="search-group">
+                        <input type="text" id="doc-search" placeholder="Search documents...">
+                        <button id="search-btn"><i class="fas fa-search"></i></button>
+                    </div>
+                </div>
+                
+                <div class="documents-container">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Title</th>
+                                <th>Character</th>
+                                <th>File Type</th>
+                                <th>Created Date</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="documents-list">
+                            <!-- Documents will be populated dynamically -->
+                        </tbody>
+                    </table>
+                </div>
+                
+                <!-- Upload Document Modal -->
+                <div class="modal" id="uploadDocModal">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h2>Upload Document</h2>
+                            <span class="close">&times;</span>
+                        </div>
+                        <div class="modal-body">
+                            <form id="documentForm" enctype="multipart/form-data">
+                                <div class="form-group">
+                                    <label for="character_id">Character:</label>
+                                    <select id="character_id" name="character_id" required>
+                                        <option value="">Select Character</option>
+                                        <!-- Characters will be loaded dynamically -->
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label for="document">Document File:</label>
+                                    <input type="file" id="document" name="file" required>
+                                    <p class="help-text">Supported formats: PDF, TXT, DOCX (max 10MB)</p>
+                                </div>
+                                <div class="form-actions">
+                                    <button type="submit" class="submit-btn">Upload Document</button>
+                                    <button type="button" class="cancel-btn">Cancel</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Document View Modal -->
+                <div class="modal" id="viewDocModal">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h2 id="viewDocTitle">Document Details</h2>
+                            <span class="close">&times;</span>
+                        </div>
+                        <div class="modal-body">
+                            <div id="docDetails">
+                                <!-- Document details will be shown here -->
+                            </div>
+                            <div class="form-actions">
+                                <button type="button" class="cancel-btn">Close</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script src="/static/js/documents.js"></script>
+</body>
+</html>

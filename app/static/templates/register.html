@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Register - Game Character API Admin</title>
+    <link rel="stylesheet" href="/static/css/admin.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <div class="auth-container">
+        <div class="auth-card">
+            <div class="auth-header">
+                <h1>Game Character API</h1>
+                <p>Create a new admin account</p>
+            </div>
+            
+            <div id="error-message" class="error-message" style="display: none;"></div>
+            
+            <form id="register-form">
+                <div class="form-group">
+                    <label for="full_name">Full Name</label>
+                    <input type="text" id="full_name" class="form-control" placeholder="Enter your full name" required>
+                </div>
+                <div class="form-group">
+        <label for="username">Username</label>
+        <input type="text" id="username" class="form-control" placeholder="Enter your username" required>
+    </div>
+                <div class="form-group">
+                    <label for="email">Email</label>
+                    <input type="email" id="email" class="form-control" placeholder="Enter your email" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="password">Password</label>
+                    <input type="password" id="password" class="form-control" placeholder="Enter your password" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="confirm_password">Confirm Password</label>
+                    <input type="password" id="confirm_password" class="form-control" placeholder="Confirm your password" required>
+                </div>
+                <div class="form-group form-check">
+                    <input type="checkbox" class="form-check-input" id="is_super_admin_check">
+                    <label class="form-check-label" for="is_super_admin_check">Register as Super Admin?</label>
+                </div>
+                <div class="form-group" id="secret_token_group" style="display: none;">
+                    <label for="secret_token">Secret Token</label>
+                    <input type="password" id="secret_token" class="form-control" placeholder="Enter super admin secret token">
+                </div>
+                <button type="submit" class="btn btn-primary btn-block">Register</button>
+            </form>
+            
+            <div class="auth-footer">
+                <p>Already have an account? <a href="/">Login</a></p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const superAdminCheckbox = document.getElementById('is_super_admin_check');
+        const secretTokenGroup = document.getElementById('secret_token_group');
+        const secretTokenInput = document.getElementById('secret_token');
+
+        // Add event listener for the checkbox change event
+        superAdminCheckbox.addEventListener('change', function() {
+            if (this.checked) {
+                secretTokenGroup.style.display = 'block';
+                secretTokenInput.required = true; // Make token required if checkbox is checked
+            } else {
+                secretTokenGroup.style.display = 'none';
+                secretTokenInput.required = false;
+                secretTokenInput.value = ''; // Clear the value if unchecked
+            }
+        });
+
+        document.getElementById('register-form').addEventListener('submit', async function(e) {
+            e.preventDefault();
+
+            const fullName = document.getElementById('full_name').value;
+            const username = document.getElementById('username').value;
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            const confirmPassword = document.getElementById('confirm_password').value;
+            const errorMessage = document.getElementById('error-message');
+            const isSuperAdminChecked = superAdminCheckbox.checked;
+            const secretToken = secretTokenInput.value;
+
+            errorMessage.style.display = 'none'; // Hide error initially
+
+            // Validate passwords match
+            if (password !== confirmPassword) {
+                errorMessage.textContent = 'Passwords do not match';
+                errorMessage.style.display = 'block';
+                return;
+            }
+
+            if (isSuperAdminChecked && !secretToken) {
+                errorMessage.textContent = 'Secret Token is required for Super Admin registration.';
+                errorMessage.style.display = 'block';
+                return;
+            }
+
+            const payload = {
+                username: username,
+                email: email,
+                password: password,
+                full_name: fullName,
+                // Only include secret_token if the checkbox is checked
+                ...(isSuperAdminChecked && { secret_token: secretToken })
+            };
+
+            try {
+                const response = await fetch('/api/v1/register', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(payload),
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.detail || 'Registration failed');
+                }
+
+                // Redirect to login page with a success message
+                window.location.href = '/?registered=true&approved=' + (isSuperAdminChecked ? 'true' : 'false'); // Indicate if approval is needed
+            } catch (error) {
+                console.error('Registration error:', error); // Log the actual error
+                errorMessage.textContent = error.message; // Display the error message
+                errorMessage.style.display = 'block';
+            }
+        });
+    });
+</script>
+
+     <style>
+         .form-check {
+        display: flex;
+        align-items: center;
+        padding-left: 1.25rem;
+        margin-right: .5rem;
+        margin-bottom: 1rem;
+    }
+        .form-check-input {
+        margin-left: -1.25rem; /* Aligns the checkbox with the label */
+        width: 1.25rem; /* Ensures consistent size */
+        height: 1.25rem; /* Ensures consistent size */
+        accent-color: orange; /* Changes the checkbox color to orange */
+    }
+        .form-check-label {
+        margin-left:1rem;
+        margin-bottom: -2px; /* Removes bottom margin for better alignment */
+        user-select: none; /* Prevents text selection for better UX */
+    }
+    </style>
+</body>
+</html>
