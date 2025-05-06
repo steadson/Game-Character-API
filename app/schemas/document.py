@@ -3,7 +3,8 @@ from datetime import datetime
 from pydantic import BaseModel, Field, HttpUrl
 from app.models.document import DocumentType, ContentType
 
-
+class EmbedRequest(BaseModel):
+    reembed: bool = False
 # Shared properties
 class DocumentBase(BaseModel):
     title: Optional[str] = None

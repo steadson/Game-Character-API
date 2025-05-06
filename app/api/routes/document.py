@@ -1,11 +1,11 @@
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, status, BackgroundTasks
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, status, BackgroundTasks, Body
 from sqlalchemy.orm import Session
 from typing import List, Optional, Dict, Any
 
 from app.db.session import get_db
 from app.models.user import User
 from app.dependencies import get_current_active_user
-from app.schemas.document import DocumentCreate, DocumentResponse
+from app.schemas.document import DocumentCreate, DocumentResponse, EmbedRequest
 from app.services.embedding import process_document
 from app.crud.documents import create, get_multi, get, delete,get_by_user, update_document_status
 import app.models.document as models
@@ -120,6 +120,7 @@ def get_document_content(
     Get document content by ID
     """
     document = crud.documents.get(db=db, id=document_id)
+    print(document)
     if not document:
         raise HTTPException(
             status_code=404,
@@ -157,10 +158,16 @@ def get_document_content(
         )
 @router.post("/{document_id}/embed", response_model=Dict[str, Any])
 async def embed_document(
+    # document_id: int,
+    # reembed: bool = False,
+    # db: Session = Depends(get_db),
+    # current_user: User = Depends(get_current_active_user)
     document_id: int,
-    reembed: bool = False,
+    embed_request: EmbedRequest = Body(default={"reembed": False}),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user)
+
+
 ):
     """Start the embedding process for a document and wait for completion."""
     # Check permissions
@@ -179,7 +186,7 @@ async def embed_document(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Document not found"
         )
-    
+    reembed = embed_request.reembed if hasattr(embed_request, 'reembed') else False
     # If document is already embedded and reembed is not requested, return early
     if document.is_embedded and not reembed:
         return {
@@ -192,7 +199,7 @@ async def embed_document(
     update_document_status(db, id=document_id, is_embedded=False, status="processing")
     
     # Process document synchronously - wait for completion
-    await process_document(document_id, db)
+    await process_document(document_id, db, reembed)
     
     # Get updated document status
     updated_document = get(db, id=document_id)

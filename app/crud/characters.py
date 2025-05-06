@@ -13,7 +13,7 @@ def get_by_character_id(db: Session, character_id: str) -> Optional[Character]:
 
 
 def get_character(db: Session, id: int) -> Optional[Character]:
-    return db.query(Character).filter(Character.id == id).first()
+   return db.query(Character).filter(Character.id == id).first()
 
 
 def get_multi(

@@ -10,3 +10,7 @@ engine = create_engine(
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 Base = declarative_base()
+# from app.models.conversation import Conversation
+# from app.models.user import User
+# from app.models.character import Character
+# from app.models.document import Document

@@ -3,6 +3,7 @@ from typing import Any, Dict, Optional, Union, List
 import uuid
 
 from sqlalchemy.orm import Session
+from app.services.chroma_utils import delete_from_chroma
 
 from app.models.document import Document, DocumentType, ContentType
 from app.schemas.document import DocumentCreate, DocumentUpdate
@@ -113,16 +114,7 @@ def update(
     return db_obj
 
 
-def delete(db: Session, *, id: int) -> Document:
-    obj = db.query(Document).get(id)
-    
-    # Delete the file from disk if it exists and is a file (not a link)
-    if obj and obj.content_type == ContentType.FILE and os.path.exists(obj.file_path):
-        os.remove(obj.file_path)
-    
-    db.delete(obj)
-    db.commit()
-    return obj
+
 
 
 def update_document_status(db: Session, *, document=None, id=None, is_embedded: bool, status: str):
@@ -137,6 +129,29 @@ def update_document_status(db: Session, *, document=None, id=None, is_embedded: 
         db.refresh(document)  # Refresh the document, not the db
         return document
     return None
+
+
+def delete(db: Session, *, id: int) -> Document:
+    obj = db.query(Document).get(id)
+    
+    if obj:
+        # Delete from ChromaDB if the document was embedded
+        if obj.is_embedded:
+            delete_from_chroma(id)
+        
+        # Delete the file from disk if it exists and is a file (not a link)
+        if obj.content_type == ContentType.FILE and os.path.exists(obj.file_path):
+            os.remove(obj.file_path)
+        
+        db.delete(obj)
+        db.commit()
+    
+    return obj
+
+
+    
+  
+
 
 def get_by_user(db: Session, *, user_id: int) -> List[Document]:
     """Get all documents uploaded by a specific user."""

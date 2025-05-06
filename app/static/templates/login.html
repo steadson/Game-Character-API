@@ -4,13 +4,270 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Login - Game Character API Admin</title>
-    <link rel="stylesheet" href="/static/css/admin.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary-color: #ee8743;
+            --primary-hover: #d4bd3a;
+            --secondary-color: #7209b7;
+            --text-color: #333;
+            --light-text: #6c757d;
+            --background: #f8f9fa;
+            --card-bg: #ffffff;
+            --border-color: #e0e0e0;
+            --error-color: #dc3545;
+            --success-color: #28a745;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Poppins', sans-serif;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-color);
+        }
+
+        .auth-container {
+            width: 100%;
+            max-width: 420px;
+            padding: 20px;
+        }
+
+        .auth-card {
+            background: var(--card-bg);
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+            transition: all 0.3s ease;
+        }
+
+        .auth-header {
+            padding: 30px 30px 20px;
+            text-align: center;
+        }
+
+        .logo-container {
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: center;
+        }
+
+        .logo {
+            width: 80px;
+            height: 80px;
+            object-fit: contain;
+        }
+
+        .auth-header h1 {
+            font-size: 24px;
+            font-weight: 600;
+            color: var(--primary-color);
+            margin-bottom: 8px;
+        }
+
+        .auth-header p {
+            color: var(--light-text);
+            font-size: 14px;
+        }
+
+        .error-message {
+            background-color: rgba(220, 53, 69, 0.1);
+            color: var(--error-color);
+            padding: 12px;
+            border-radius: 6px;
+            margin: 0 30px 20px;
+            font-size: 14px;
+            text-align: center;
+        }
+
+        form {
+            padding: 0 30px 30px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .input-container {
+            position: relative;
+        }
+
+        .input-container i {
+            position: absolute;
+            top: 50%;
+            left: 15px;
+            transform: translateY(-50%);
+            color: var(--light-text);
+        }
+
+        .form-control {
+            width: 100%;
+            padding: 12px 15px 12px 45px;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            font-size: 14px;
+            transition: all 0.3s;
+            font-family: 'Poppins', sans-serif;
+        }
+
+        .form-control:focus {
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgba(67, 97, 238, 0.15);
+            outline: none;
+        }
+
+        .btn {
+            display: block;
+            width: 100%;
+            padding: 12px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 500;
+            transition: all 0.3s;
+            font-family: 'Poppins', sans-serif;
+        }
+
+        .btn-primary {
+            background: var(--primary-color);
+            color: white;
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            background: var(--primary-hover);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(67, 97, 238, 0.2);
+        }
+
+        .btn-primary:disabled {
+            opacity: 0.7;
+            cursor: not-allowed;
+        }
+
+        .btn-content {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .spinner {
+            display: none;
+            width: 20px;
+            height: 20px;
+            margin-left: 10px;
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-top: 3px solid #ffffff;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+                .input-container {
+            position: relative;
+        }
+
+        .input-container i {
+            position: absolute;
+            top: 50%;
+            left: 15px;
+            transform: translateY(-50%);
+            color: var(--light-text);
+        }
+        .input-container i:last-child {
+            position: absolute;
+            top: 50%;
+            left: 90%;
+            transform: translateY(-50%);
+            color: var(--light-text);
+        }
+        
+        .password-toggle {
+            position: absolute;
+            top: 50%;
+            right: 15px;
+            left: auto;
+            transform: translateY(-50%);
+            cursor: pointer;
+            color: var(--light-text);
+            transition: color 0.2s;
+        }
+        
+        .password-toggle:hover {
+            color: var(--primary-color);
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .auth-footer {
+            padding: 20px 30px;
+            text-align: center;
+            border-top: 1px solid var(--border-color);
+            font-size: 14px;
+            color: var(--light-text);
+        }
+
+        .auth-footer a {
+            color: var(--primary-color);
+            text-decoration: none;
+            font-weight: 500;
+            transition: all 0.3s;
+        }
+
+        .auth-footer a:hover {
+            color: var(--primary-hover);
+            text-decoration: underline;
+        }
+
+        @media (max-width: 480px) {
+            .auth-container {
+                padding: 15px;
+            }
+            
+            .auth-header {
+                padding: 25px 20px 15px;
+            }
+            
+            form {
+                padding: 0 20px 25px;
+            }
+            
+            .error-message {
+                margin: 0 20px 15px;
+            }
+            
+            .auth-footer {
+                padding: 15px 20px;
+            }
+        }
+    </style>
 </head>
 <body>
     <div class="auth-container">
         <div class="auth-card">
             <div class="auth-header">
+                <div class="logo-container">
+                    <img src="/static/images/logo.png" alt="Game Character API Logo" class="logo" onerror="this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iODAiIGhlaWdodD0iODAiIHZpZXdCb3g9IjAgMCA4MCA4MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cGF0aCBkPSJNNDAgMTBDMjMuNDMgMTAgMTAgMjMuNDMgMTAgNDBDMTAgNTYuNTcgMjMuNDMgNzAgNDAgNzBDNTYuNTcgNzAgNzAgNTYuNTcgNzAgNDBDNzAgMjMuNDMgNTYuNTcgMTAgNDAgMTBaTTQwIDIwQzQ1LjUyIDIwIDUwIDI0LjQ4IDUwIDMwQzUwIDM1LjUyIDQ1LjUyIDQwIDQwIDQwQzM0LjQ4IDQwIDMwIDM1LjUyIDMwIDMwQzMwIDI0LjQ4IDM0LjQ4IDIwIDQwIDIwWk00MCA2MkMzMi41IDYyIDI1Ljg5IDU4LjMxIDIyIDUyLjU4QzIyLjA5IDQ2LjMgMzQuMzMgNDMgNDAgNDNDNDUuNjcgNDMgNTcuOTEgNDYuMyA1OCA1Mi41OEM1NC4xMSA1OC4zMSA0Ny41IDYyIDQwIDYyWiIgZmlsbD0iIzQzNjFlZSIvPjwvc3ZnPg=='">
+                </div>
                 <h1>Game Character API</h1>
                 <p>Login to access the admin panel</p>
             </div>
@@ -20,15 +277,27 @@
             <form id="login-form">
                 <div class="form-group">
                     <label for="username">Username</label>
-                    <input type="text" id="username" class="form-control" placeholder="Enter your username" required>
+                    <div class="input-container">
+                        <i class="fas fa-user"></i>
+                        <input type="text" id="username" class="form-control" placeholder="Enter your username" required>
+                    </div>
                 </div>
                 
-                <div class="form-group">
+                                <div class="form-group">
                     <label for="password">Password</label>
-                    <input type="password" id="password" class="form-control" placeholder="Enter your password" required>
+                    <div class="input-container">
+                        <i class="fas fa-lock"></i>
+                        <input type="password" id="password" class="form-control" placeholder="Enter your password" required>
+                        <i class="fas fa-eye-slash password-toggle" data-target="password"></i>
+                    </div>
                 </div>
                 
-                <button type="submit" class="btn btn-primary btn-block">Log In</button>
+                <button type="submit" class="btn btn-primary">
+                    <div class="btn-content">
+                        <span>Log In</span>
+                        <div class="spinner" id="login-spinner"></div>
+                    </div>
+                </button>
             </form>
             
             <div class="auth-footer">
@@ -44,6 +313,13 @@
             const username = document.getElementById('username').value;
             const password = document.getElementById('password').value;
             const errorMessage = document.getElementById('error-message');
+            const spinner = document.getElementById('login-spinner');
+            const submitButton = this.querySelector('button[type="submit"]');
+            
+            // Show spinner and disable button
+            spinner.style.display = 'inline-block';
+            submitButton.disabled = true;
+            errorMessage.style.display = 'none';
             
             try {
                 const response = await fetch('/api/v1/auth/login', {
@@ -71,7 +347,31 @@
             } catch (error) {
                 errorMessage.textContent = error.message;
                 errorMessage.style.display = 'block';
+                spinner.style.display = 'none';
+                submitButton.disabled = false;
             }
+        });
+          // Password toggle functionality
+        document.addEventListener('DOMContentLoaded', function() {
+            const passwordToggles = document.querySelectorAll('.password-toggle');
+            
+            passwordToggles.forEach(toggle => {
+                toggle.addEventListener('click', function() {
+                    const targetId = this.getAttribute('data-target');
+                    const passwordInput = document.getElementById(targetId);
+                    
+                    // Toggle password visibility
+                    if (passwordInput.type === 'password') {
+                        passwordInput.type = 'text';
+                        this.classList.remove('fa-eye-slash');
+                        this.classList.add('fa-eye');
+                    } else {
+                        passwordInput.type = 'password';
+                        this.classList.remove('fa-eye');
+                        this.classList.add('fa-eye-slash');
+                    }
+                });
+            });
         });
     </script>
 </body>

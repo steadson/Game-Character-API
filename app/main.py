@@ -10,6 +10,7 @@ from app.db.session import engine, SessionLocal
 from app.db.base import Base
 from app.core.config import settings
 from app.dependencies import get_db
+from app.api.routes import public_chat
 
 
 # Configure root logger
@@ -53,6 +54,7 @@ app.include_router(admin.router, prefix=settings.API_V1_STR)
 app.include_router(characters.router, prefix=settings.API_V1_STR)
 app.include_router(chat.router, prefix=settings.API_V1_STR)
 app.include_router(document.router, prefix=f"{settings.API_V1_STR}/embed")
+app.include_router(public_chat.router, tags=["public"])
 
 @app.get("/", response_class=HTMLResponse)
 async def root(request: Request):

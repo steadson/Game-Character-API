@@ -12,6 +12,7 @@ class Settings(BaseSettings):
     APP_NAME: str = "Game Character API"
     API_V1_STR: str = "/api/v1"
     SECRET_KEY: str = secrets.token_urlsafe(32)
+    PUBLIC_API_KEY: str = os.getenv("PUBLIC_API_KEY", "42f27353fg4624f846ge64wdfg4y49iw")
     # 60 minutes * 24 hours * 8 days = 8 days
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 8
     SUPER_ADMIN_SECRET_TOKEN: str = "12345678" # CHANGE THIS!

@@ -49,8 +49,9 @@ logger.info(f"Using ChromaDB path: {chroma_db_path}")
 chroma_client = chromadb.PersistentClient(path=chroma_db_path)
 collection_name = "documents_embeddings"
 
-async def process_document(document_id: int, db: Session) -> None:
+async def process_document(document_id: int, db: Session,  reembed: bool = False) -> None:
     """
+
     Main function to process a document for embedding.
     
     Args:
@@ -64,7 +65,12 @@ async def process_document(document_id: int, db: Session) -> None:
         if not document:
             logger.error(f"Document with ID {document_id} not found")
             return
-        
+         # If re-embedding, delete existing embeddings first
+        if reembed and document.is_embedded:
+            logger.info(f"Re-embedding requested for document ID {document_id}. Deleting old embeddings...")
+            from app.services.chroma_utils import delete_from_chroma
+            delete_from_chroma(document_id)
+            logger.info(f"Old embeddings deleted for document ID {document_id}")
         # Update document status to processing
         update_document_status(db, id=document_id, is_embedded=False, status="processing")
         logger.info(f"Processing document: {document.title} (ID: {document_id})")
@@ -180,7 +186,7 @@ async def query_documents(query_text: str, top_k: int = 5, character_id: Optiona
         # Create embedding for the query
         response = openai_client.embeddings.create(
             input=query_text,
-            model="text-embedding-3-small"  # Use the same model as for document embeddings
+            model="text-embedding-3-large"  # Use the same model as for document embeddings
         )
         query_embedding = response.data[0].embedding
         
@@ -192,10 +198,10 @@ async def query_documents(query_text: str, top_k: int = 5, character_id: Optiona
         results = collection.query(
             query_embeddings=[query_embedding],
             n_results=top_k,
-            where=filter_dict if filter_dict else None,
+            # where=filter_dict if filter_dict else None,
             include=["documents", "metadatas", "distances"]
         )
-        
+        # print(results)
         # Format results
         formatted_results = []
         if results and results["documents"] and len(results["documents"][0]) > 0:
@@ -686,6 +692,9 @@ def chunk_text(text: str, title: str, doc_id: int, chunk_size: int = 1500, overl
     
     logger.info(f"Created {len(chunks)} chunks from document")
     return chunks
+
+# ... existing imports ...
+
 
 
 async def create_embeddings(chunks: List[Dict], document: Document) -> None:
