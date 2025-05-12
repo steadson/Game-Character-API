@@ -896,6 +896,67 @@ Dæmon APIs</span>
                         <i class="fas fa-plus"></i> Add New Document
                     </button>
                 </div>
+                 <!-- Document Auto-Refresh Card -->
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5 class="mb-0">Document Auto-Refresh Settings</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <form id="refresh-settings-form">
+                                    <div class="mb-3">
+                                        <label for="refresh-interval" class="form-label">Refresh Interval</label>
+                                        <div class="input-group">
+                                            <input type="number" class="form-control" id="refresh-interval" min="1" value="24">
+                                            <select class="form-select" id="refresh-interval-unit" style="max-width: 120px;">
+                                                <option value="hours">Hours</option>
+                                                <option value="days">Days</option>
+                                                <option value="weeks">Weeks</option>
+                                            </select>
+                                        </div>
+                                        <div class="form-text">URL documents will be automatically re-scraped and re-embedded at this interval.</div>
+                                    </div>
+                                    <div class="form-check form-switch mb-3">
+                                        <input class="form-check-input" type="checkbox" id="auto-refresh-toggle" checked>
+                                        <label class="form-check-label" for="auto-refresh-toggle">Enable Auto-Refresh</label>
+                                    </div>
+                                                                        <button type="submit" class="btn btn-primary" id="save-settings-btn">
+                                        <span class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true" id="settings-spinner"></span>
+                                        <span id="settings-btn-text">Save Settings</span>
+                                    </button>
+                                    <button type="button" id="refresh-now-btn" class="btn btn-secondary ms-2">
+                                        <i class="fas fa-sync-alt"></i> Refresh Now
+                                    </button>
+                                   
+                                </form>
+                            </div>
+                            <div class="col-md-6">
+                                <div id="refresh-status-card" style="display: none;">
+                                    <div class="card bg-light">
+                                        <div class="card-body">
+                                            <h6 class="card-title">
+                                                <i class="fas fa-sync-alt fa-spin me-2"></i>
+                                                Document Refresh in Progress
+                                            </h6>
+                                            <div class="progress mb-3">
+                                                <div id="refresh-progress-bar" class="progress-bar progress-bar-striped progress-bar-animated" 
+                                                     role="progressbar" style="width: 0%;" 
+                                                     aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">0%</div>
+                                            </div>
+                                            <p id="refresh-progress-text" class="mb-0">Processing documents: 0 of 0</p>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div id="refresh-history" class="mt-3">
+                                    <h6>Last Refresh: <span id="last-refresh-time">Never</span></h6>
+                                    <p id="refresh-result" class="mb-0"></p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
               <!-- Success/Error Messages -->
     <div id="document-success-message" class="alert alert-success" style="display: none;"></div>
     <div id="document-error-message" class="alert alert-danger" style="display: none;"></div>
@@ -1205,7 +1266,251 @@ Dæmon APIs</span>
                 });
             });
         }
+// Add this after your setupNavigation function
 
+// // Function to load document refresh settings
+// async function loadDocumentRefreshSettings() {
+//     try {
+//         const response = await fetch('/api/v1/document-refresh/settings', {
+//             headers: {
+//                 'Authorization': `Bearer ${localStorage.getItem('access_token')}`
+//             }
+//         });
+
+//         if (!response.ok) {
+//             throw new Error('Failed to load refresh settings');
+//         }
+
+//         const settings = await response.json();
+//         console.log('Refresh settings:', settings);
+        
+//         // Update the form with the current settings
+//         document.getElementById('refresh-interval').value = settings.hours;
+//         document.getElementById('auto-refresh-toggle').checked = settings.enabled;
+        
+//         // Update last refresh time display
+//         if (settings.last_refresh) {
+//             const lastRefreshDate = new Date(settings.last_refresh);
+//             document.getElementById('last-refresh-time').textContent = lastRefreshDate.toLocaleString();
+//         } else {
+//             document.getElementById('last-refresh-time').textContent = 'Never';
+//         }
+        
+//         // Update refresh status
+//         document.getElementById('refresh-result').textContent = 
+//             settings.status === 'in_progress' ? 'Refresh in progress...' : 'Completed';
+            
+//         // Show/hide refresh status card
+//         document.getElementById('refresh-status-card').style.display = 
+//             settings.status === 'in_progress' ? 'block' : 'none';
+//     } catch (error) {
+//         console.error('Error loading refresh settings:', error);
+//         document.getElementById('last-refresh-time').textContent = 'Error loading settings';
+//     }
+// }
+
+// Function to setup document section
+function setupDocumentSection() {
+    // Load the current refresh settings
+    //loadDocumentRefreshSettings();
+    
+    // Setup the form submission
+    document.getElementById('refresh-settings-form').addEventListener('submit', async function(e) {
+        e.preventDefault();
+        
+        const hours = parseInt(document.getElementById('refresh-interval').value);
+        const enabled = document.getElementById('auto-refresh-toggle').checked;
+        
+        // Show loading state
+        const spinner = document.getElementById('settings-spinner');
+        const btnText = document.getElementById('settings-btn-text');
+        spinner.classList.remove('d-none');
+        btnText.textContent = 'Saving...';
+        
+        try {
+            const response = await fetch('/api/v1/document-refresh/settings', {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ hours, enabled })
+            });
+            
+            if (!response.ok) {
+                throw new Error('Failed to save settings');
+            }
+            
+            const result = await response.json();
+            console.log('Settings saved:', result);
+            
+            // Show success message
+            const successMsg = document.getElementById('document-success-message');
+            successMsg.textContent = 'Settings saved successfully';
+            successMsg.style.display = 'block';
+            setTimeout(() => {
+                successMsg.style.display = 'none';
+            }, 3000);
+            
+            // Reload the settings to confirm they were saved
+            loadDocumentRefreshSettings();
+        } catch (error) {
+            console.error('Error saving settings:', error);
+            const errorMsg = document.getElementById('document-error-message');
+            errorMsg.textContent = 'Error saving settings: ' + error.message;
+            errorMsg.style.display = 'block';
+            setTimeout(() => {
+                errorMsg.style.display = 'none';
+            }, 3000);
+        } finally {
+            // Reset button state
+            spinner.classList.add('d-none');
+            btnText.textContent = 'Save Settings';
+        }
+    });
+    
+    // Setup the refresh now button
+    document.getElementById('refresh-now-btn').addEventListener('click', async function() {
+        try {
+            const response = await fetch('/api/v1/document-refresh/now', {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${localStorage.getItem('access_token')}`
+                }
+            });
+            
+            if (!response.ok) {
+                throw new Error('Failed to trigger refresh');
+            }
+            
+            const result = await response.json();
+            console.log('Refresh triggered:', result);
+            
+            // Show success message
+            const successMsg = document.getElementById('document-success-message');
+            successMsg.textContent = 'Document refresh process started';
+            successMsg.style.display = 'block';
+            setTimeout(() => {
+                successMsg.style.display = 'none';
+            }, 3000);
+            
+            // Start checking refresh status
+            checkRefreshStatus();
+        } catch (error) {
+            console.error('Error triggering refresh:', error);
+            const errorMsg = document.getElementById('document-error-message');
+            errorMsg.textContent = 'Error triggering refresh: ' + error.message;
+            errorMsg.style.display = 'block';
+            setTimeout(() => {
+                errorMsg.style.display = 'none';
+            }, 3000);
+        }
+    });
+    
+    // Function to check refresh status
+    async function checkRefreshStatus() {
+        try {
+            const response = await fetch('/api/v1/document-refresh/status', {
+                headers: {
+                    'Authorization': `Bearer ${localStorage.getItem('access_token')}`
+                }
+            });
+            
+            if (!response.ok) {
+                throw new Error('Failed to get refresh status');
+            }
+            
+            const status = await response.json();
+            console.log('Refresh status:', status);
+            
+            // Update UI based on status
+            if (status.status === 'in_progress') {
+                // Show progress card
+                document.getElementById('refresh-status-card').style.display = 'block';
+                
+                // Update progress bar
+                const progressPercent = status.total > 0 ? Math.round((status.processed / status.total) * 100) : 0;
+                const progressBar = document.getElementById('refresh-progress-bar');
+                progressBar.style.width = `${progressPercent}%`;
+                progressBar.textContent = `${progressPercent}%`;
+                progressBar.setAttribute('aria-valuenow', progressPercent);
+                
+                // Update progress text
+                document.getElementById('refresh-progress-text').textContent = 
+                    `Processing documents: ${status.processed} of ${status.total}`;
+                
+                // Check again in 2 seconds
+                setTimeout(checkRefreshStatus, 2000);
+            } else {
+                // Hide progress card
+                document.getElementById('refresh-status-card').style.display = 'none';
+                
+                // Update last refresh time
+                if (status.last_refresh) {
+                    const lastRefreshDate = new Date(status.last_refresh);
+                    document.getElementById('last-refresh-time').textContent = lastRefreshDate.toLocaleString();
+                }
+                
+                // Update refresh result
+                document.getElementById('refresh-result').textContent = 'Completed successfully';
+            }
+        } catch (error) {
+            console.error('Error checking refresh status:', error);
+            document.getElementById('refresh-status-card').style.display = 'none';
+        }
+    }
+}
+
+// Modify the setupNavigation function to call setupDocumentSection when documents section is shown
+function setupNavigation() {
+    // Get all menu items
+    const menuItems = document.querySelectorAll('.sidebar-menu .menu-item');
+
+    // Add click event to each menu item
+    menuItems.forEach(item => {
+        if (item.id !== 'logout-btn') { // Skip logout button
+            item.addEventListener('click', function (e) {
+                e.preventDefault();
+
+                // Remove active class from all menu items
+                menuItems.forEach(mi => mi.classList.remove('active'));
+
+                // Add active class to clicked menu item
+                this.classList.add('active');
+
+                // Get the section to show
+                const sectionToShow = this.getAttribute('data-section');
+
+                // Update the section title
+                document.getElementById('section-title').textContent =
+                    sectionToShow.charAt(0).toUpperCase() + sectionToShow.slice(1);
+
+                // Hide all sections
+                document.querySelectorAll('.content-section').forEach(section => {
+                    section.classList.remove('active');
+                });
+
+                // Show the selected section
+                document.getElementById(`${sectionToShow}-section`).classList.add('active');
+
+                // Load data for the section if needed
+                if (sectionToShow === 'characters') {
+                    loadAllCharacters();
+                } else if (sectionToShow === 'documents') {
+                    // Setup document section when it's shown
+                    setupDocumentSection();
+                }
+
+                // Close the mobile sidebar if it's open
+                if (window.innerWidth < 992) {
+                    document.getElementById('sidebar').classList.remove('active');
+                }
+            });
+        }
+    });
+
+    // Rest of your existing setupNavigation code...
+}
         async function loadUserProfile() {
             try {
                 const response = await fetch('/api/v1/users/me', {
@@ -3695,6 +4000,349 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             }
         }
+            // Document auto-refresh functionality
+    document.addEventListener('DOMContentLoaded', function() {
+        const refreshForm = document.getElementById('refresh-settings-form');
+        const refreshNowBtn = document.getElementById('refresh-now-btn');
+        const autoRefreshToggle = document.getElementById('auto-refresh-toggle');
+        const refreshStatusCard = document.getElementById('refresh-status-card');
+        const refreshProgressBar = document.getElementById('refresh-progress-bar');
+        const refreshProgressText = document.getElementById('refresh-progress-text');
+        const lastRefreshTime = document.getElementById('last-refresh-time');
+        const refreshResult = document.getElementById('refresh-result');
+        
+        // Load saved settings
+        loadRefreshSettings();
+        
+        // Save settings when form is submitted
+        refreshForm.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const saveButton = this.querySelector('button[type="submit"]');
+            const originalButtonText = saveButton.innerHTML;
+            saveButton.disabled = true;
+            saveButton.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Saving...';
+            const refreshInterval = document.getElementById('refresh-interval').value;
+            const refreshIntervalUnit = document.getElementById('refresh-interval-unit').value;
+            const autoRefreshEnabled = autoRefreshToggle.checked;
+            
+            if (refreshInterval < 1) {
+                showDocumentMessage('error', 'Refresh interval must be at least 1');
+               saveButton.disabled = false;
+                saveButton.innerHTML = originalButtonText;
+                return;
+            }
+            
+            // Convert to hours based on selected unit
+            let hoursValue = parseInt(refreshInterval);
+            if (refreshIntervalUnit === 'days') {
+                hoursValue *= 24;
+            } else if (refreshIntervalUnit === 'weeks') {
+                hoursValue *= 24 * 7;
+            }
+            
+            try {
+                const response = await fetch('/api/v1/document-refresh/settings', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${localStorage.getItem('access_token')}`
+                    },
+                    body: JSON.stringify({ 
+                        hours: hoursValue,
+                        enabled: autoRefreshEnabled
+                    })
+                });
+                
+                if (!response.ok) {
+                    throw new Error('Failed to update refresh settings');
+                }
+                
+                const result = await response.json();
+                showDocumentMessage('success', result.message);
+                
+                // Save settings to localStorage
+                saveRefreshSettings(refreshInterval, refreshIntervalUnit, autoRefreshEnabled);
+                
+            } catch (error) {
+                console.error('Error updating refresh settings:', error);
+                showDocumentMessage('error', 'Failed to update refresh settings');
+            }finally {
+                // Reset button state
+                saveButton.disabled = false;
+                saveButton.innerHTML = originalButtonText;
+            }
+        });
+        
+        // Handle manual refresh
+        refreshNowBtn.addEventListener('click', async function() {
+            try {
+                refreshNowBtn.disabled = true;
+                refreshNowBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Processing...';
+                
+                // Start the refresh process
+                const response = await fetch('/api/v1/document-refresh/now', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${localStorage.getItem('access_token')}`
+                    }
+                });
+                
+                if (!response.ok) {
+                    throw new Error('Failed to trigger document refresh');
+                }
+                
+                const result = await response.json();
+                showDocumentMessage('success', 'Document refresh process started');
+                
+                // Start polling for progress updates
+                startProgressPolling();
+                
+            } catch (error) {
+                console.error('Error triggering refresh:', error);
+                showDocumentMessage('error', 'Failed to trigger document refresh');
+                refreshNowBtn.disabled = false;
+                refreshNowBtn.innerHTML = '<i class="fas fa-sync-alt"></i> Refresh Now';
+            }
+        });
+        
+        // Toggle auto-refresh
+        autoRefreshToggle.addEventListener('change', function() {
+            const isEnabled = this.checked;
+            saveRefreshSettings(
+                document.getElementById('refresh-interval').value,
+                document.getElementById('refresh-interval-unit').value,
+                isEnabled
+            );
+            
+            // Update the server with the new setting
+            fetch('/api/v1/document-refresh/settings', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${localStorage.getItem('access_token')}`
+                },
+                body: JSON.stringify({ 
+                    enabled: isEnabled,
+                    hours: getHoursValue()
+                })
+            }).catch(error => {
+                console.error('Error updating auto-refresh setting:', error);
+            });
+        });
+        
+        // Helper function to get hours value based on current form values
+        function getHoursValue() {
+            const refreshInterval = document.getElementById('refresh-interval').value;
+            const refreshIntervalUnit = document.getElementById('refresh-interval-unit').value;
+            
+            let hoursValue = parseInt(refreshInterval);
+            if (refreshIntervalUnit === 'days') {
+                hoursValue *= 24;
+            } else if (refreshIntervalUnit === 'weeks') {
+                hoursValue *= 24 * 7;
+            }
+            
+            return hoursValue;
+        }
+        
+        // Save refresh settings to localStorage
+        function saveRefreshSettings(interval, unit, enabled) {
+            const settings = {
+                interval: interval,
+                unit: unit,
+                enabled: enabled,
+                lastSaved: new Date().toISOString()
+            };
+             // Preserve the last refresh time if it exists
+            const savedSettings = localStorage.getItem('documentRefreshSettings');
+            if (savedSettings) {
+                try {
+                    const oldSettings = JSON.parse(savedSettings);
+                    if (oldSettings.lastRefreshTime) {
+                        settings.lastRefreshTime = oldSettings.lastRefreshTime;
+                        settings.lastRefreshResult = oldSettings.lastRefreshResult;
+                    }
+                } catch (e) {
+                    console.error('Error parsing saved settings:', e);
+                }
+            }
+            localStorage.setItem('documentRefreshSettings', JSON.stringify(settings));
+        }
+        
+        // Load refresh settings from localStorage
+        function loadRefreshSettings() {
+            const savedSettings = localStorage.getItem('documentRefreshSettings');
+            if (savedSettings) {
+                try {
+                    const settings = JSON.parse(savedSettings);
+                    document.getElementById('refresh-interval').value = settings.interval || 24;
+                    document.getElementById('refresh-interval-unit').value = settings.unit || 'hours';
+                    document.getElementById('auto-refresh-toggle').checked = settings.enabled !== false;
+                // Display saved last refresh time if available
+                    if (settings.lastRefreshTime) {
+                        lastRefreshTime.textContent = new Date(settings.lastRefreshTime).toLocaleString();
+                        refreshResult.textContent = settings.lastRefreshResult || 'Completed';
+                    }
+                } catch (e) {
+                    console.error('Error parsing saved refresh settings:', e);
+                }
+            }
+            
+            // Also fetch current settings from server
+            fetch('/api/v1/document-refresh/settings', {
+                headers: {
+                    'Authorization': `Bearer ${localStorage.getItem('access_token')}`
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.last_refresh) {
+                    lastRefreshTime.textContent = new Date(data.last_refresh).toLocaleString();
+                    // Save the last refresh time to localStorage
+                    updateLastRefreshInStorage(data.last_refresh, data.status || 'Completed');
+                }
+                if (data.status) {
+                    refreshResult.textContent = data.status;
+                }
+                
+                // Update form with server values if available
+                if (data.hours !== undefined) {
+                    // Convert hours to appropriate unit
+                    let interval = data.hours;
+                    let unit = 'hours';
+                    
+                    if (interval % (24 * 7) === 0) {
+                        interval = interval / (24 * 7);
+                        unit = 'weeks';
+                    } else if (interval % 24 === 0) {
+                        interval = interval / 24;
+                        unit = 'days';
+                    }
+                    
+                    document.getElementById('refresh-interval').value = interval;
+                    document.getElementById('refresh-interval-unit').value = unit;
+                }
+                
+                if (data.enabled !== undefined) {
+                    document.getElementById('auto-refresh-toggle').checked = data.enabled;
+                }
+            })
+            .catch(error => {
+                console.error('Error fetching refresh settings:', error);
+            });
+        }
+        // Helper function to update last refresh time in localStorage
+        function updateLastRefreshInStorage(timestamp, result) {
+            const savedSettings = localStorage.getItem('documentRefreshSettings');
+            let settings = {};
+            
+            if (savedSettings) {
+                try {
+                    settings = JSON.parse(savedSettings);
+                } catch (e) {
+                    console.error('Error parsing saved settings:', e);
+                }
+            }
+            
+            settings.lastRefreshTime = timestamp;
+            settings.lastRefreshResult = result;
+            localStorage.setItem('documentRefreshSettings', JSON.stringify(settings));
+        }
+        // Poll for refresh progress
+        function startProgressPolling() {
+            refreshStatusCard.style.display = 'block';
+            
+            const pollInterval = setInterval(async () => {
+                try {
+                    const response = await fetch('/api/v1/document-refresh/status', {
+                        headers: {
+                            'Authorization': `Bearer ${localStorage.getItem('access_token')}`
+                        }
+                    });
+                    
+                    if (!response.ok) {
+                        throw new Error('Failed to get refresh status');
+                    }
+                    
+                    const data = await response.json();
+                    
+                    // Update progress bar
+                    const percentage = data.total > 0 ? Math.round((data.processed / data.total) * 100) : 0;
+                    refreshProgressBar.style.width = `${percentage}%`;
+                    refreshProgressBar.textContent = `${percentage}%`;
+                    refreshProgressBar.setAttribute('aria-valuenow', percentage);
+                    
+                    // Update progress text
+                    refreshProgressText.textContent = `Processing documents: ${data.processed} of ${data.total}`;
+                    
+                    // If complete, stop polling
+                    if (data.status === 'completed' || data.status === 'failed') {
+                        clearInterval(pollInterval);
+                        
+                        // Update UI
+                        setTimeout(() => {
+                            refreshStatusCard.style.display = 'none';
+                            refreshNowBtn.disabled = false;
+                            refreshNowBtn.innerHTML = '<i class="fas fa-sync-alt"></i> Refresh Now';
+                            const currentTime = new Date().toISOString();
+                             // Update last refresh time
+                            lastRefreshTime.textContent = new Date(currentTime).toLocaleString();
+                            const resultText = data.status === 'completed' ? 
+                                `Successfully refreshed ${data.processed} documents.` : 
+                                `Refresh process failed after processing ${data.processed} documents.`;
+                            refreshResult.textContent = resultText;
+                            
+                            // Save to localStorage
+                            updateLastRefreshInStorage(currentTime, resultText);
+                            // Show message
+                            showDocumentMessage(
+                                data.status === 'completed' ? 'success' : 'error',
+                                data.status === 'completed' ? 
+                                    `Document refresh completed. ${data.processed} documents processed.` : 
+                                    `Document refresh failed after processing ${data.processed} documents.`
+                            );
+                        }, 1000);
+                    }
+                    
+                } catch (error) {
+                    console.error('Error polling refresh status:', error);
+                }
+            }, 2000); // Poll every 2 seconds
+        }
+        
+        // Show document success/error message
+        function showDocumentMessage(type, message) {
+            const messageElement = type === 'success' ? 
+                document.getElementById('document-success-message') : 
+                document.getElementById('document-error-message');
+            
+            messageElement.textContent = message;
+            messageElement.style.display = 'block';
+            
+            // Auto-hide after 5 seconds
+            setTimeout(() => {
+                messageElement.style.display = 'none';
+            }, 5000);
+        }
+        
+        // Check if a refresh is already in progress when the page loads
+        fetch('/api/v1/document-refresh/status', {
+            headers: {
+                'Authorization': `Bearer ${localStorage.getItem('access_token')}`
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'in_progress') {
+                refreshNowBtn.disabled = true;
+                startProgressPolling();
+            }
+        })
+        .catch(error => {
+            console.error('Error checking refresh status:', error);
+        });
+    });
+
     </script>
 
     

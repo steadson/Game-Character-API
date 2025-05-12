@@ -2,7 +2,7 @@ from sqlalchemy import Boolean, Column, Integer, String, Text, DateTime, Foreign
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
 import enum
-
+from datetime import datetime
 from app.db.base import Base
 
 
@@ -32,6 +32,7 @@ class Document(Base):
     document_type = Column(Enum(DocumentType), nullable=False)
     content_type = Column(Enum(ContentType), default=ContentType.FILE, nullable=False)
     is_embedded = Column(Boolean, default=False)
+    last_refreshed = Column(DateTime, nullable=True, index=True)
     embedding_status = Column(String, default="pending")
     uploaded_by = Column(Integer, ForeignKey("users.id"))
     created_at = Column(DateTime(timezone=True), server_default=func.now())

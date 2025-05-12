@@ -11,6 +11,7 @@ from app.db.base import Base
 from app.core.config import settings
 from app.dependencies import get_db
 from app.api.routes import public_chat
+from app.services.scheduler import initialize_scheduler
 
 
 # Configure root logger
@@ -55,6 +56,19 @@ app.include_router(characters.router, prefix=settings.API_V1_STR)
 app.include_router(chat.router, prefix=settings.API_V1_STR)
 app.include_router(document.router, prefix=f"{settings.API_V1_STR}/embed")
 app.include_router(public_chat.router, tags=["public"])
+
+
+# Add startup and shutdown event handlers
+@app.on_event("startup")
+async def startup_event():
+    # Initialize the document refresh scheduler
+    await initialize_scheduler()
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    # Stop the scheduler
+    from app.services.scheduler import document_scheduler
+    await document_scheduler.stop()
 
 @app.get("/", response_class=HTMLResponse)
 async def root(request: Request):

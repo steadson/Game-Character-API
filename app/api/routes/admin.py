@@ -5,12 +5,19 @@ from sqlalchemy.orm import Session
 import os
 import shutil
 from app.models.user import User
+import asyncio
 from app import crud, models, schemas
 from app.dependencies import get_current_admin_user, get_current_active_user,get_current_super_admin_user
 from app.db.session import get_db
 from app.models.document import DocumentType
+from app.services.scheduler import update_refresh_interval, document_scheduler
+from pydantic import BaseModel
 
 router = APIRouter()
+
+class RefreshIntervalUpdate(BaseModel):
+    hours: int
+    enabled: bool = True
 
 
 @router.get("/characters", response_model=List[schemas.CharacterWithDocuments])
@@ -520,6 +527,89 @@ def get_admin_stats(
         "total_documents": len(crud.documents.get_multi(db)),
         "total_users": len(crud.users.get_multi(db)) # Assumes get_multi exists in crud.users
     }
+@router.get("/document-refresh/settings")
+async def get_document_refresh_settings(
+    current_user: User = Depends(get_current_active_user),
+) -> Any:
+    """
+    Get current document refresh settings
+    """
+    return {
+        "hours": document_scheduler.refresh_interval,
+        "enabled": document_scheduler.is_enabled,
+        "last_refresh": document_scheduler.last_refresh_time.isoformat() if document_scheduler.last_refresh_time else None,
+        "status": "completed" if not document_scheduler.is_running else "in_progress"
+    }
+@router.post("/document-refresh/settings", response_model=dict)
+async def set_document_refresh_interval(
+    *,
+    settings: RefreshIntervalUpdate,
+    current_user: User = Depends(get_current_active_user),
+) -> Any:
+    """
+    Set the interval for automatic document refreshing
+    """
+    if not current_user.is_admin:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not enough permissions"
+        )
+    
+    if settings.hours < 1:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Refresh interval must be at least 1 hour"
+        )
+    
+    result = await update_refresh_interval(settings.hours, settings.enabled)
+    return result
+
+@router.post("/document-refresh/now", response_model=dict)
+async def trigger_document_refresh(
+    current_user: User = Depends(get_current_active_user),
+) -> Any:
+    """
+    Manually trigger a document refresh
+    """
+    if not current_user.is_admin:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not enough permissions"
+        )
+    
+    # Trigger the refresh process
+    asyncio.create_task(document_scheduler._refresh_documents())
+    return {"status": "success", "message": "Document refresh process started"}
+
+# Add this after your other document refresh endpoints
+
+@router.get("/document-refresh/status", response_model=dict)
+async def get_document_refresh_status(
+    current_user: User = Depends(get_current_active_user),
+) -> Any:
+    """
+    Get the current status of document refresh process
+    """
+    if not current_user.is_admin:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not enough permissions"
+        )
+    
+    # Check if refresh is in progress
+    is_running = document_scheduler.is_running
+    
+    # Get progress information
+    processed = document_scheduler.processed_count if hasattr(document_scheduler, 'processed_count') else 0
+    total = document_scheduler.total_count if hasattr(document_scheduler, 'total_count') else 0
+    current_status = "in_progress" if is_running else "completed"
+    
+    return {
+        "status": current_status,
+        "processed": processed,
+        "total": total,
+        "last_refresh": document_scheduler.last_refresh_time.isoformat() if document_scheduler.last_refresh_time else None
+    }
 @router.delete("/documents/{id}", response_model=schemas.DocumentInfo)
 def delete_document(
     *,
@@ -538,3 +628,4 @@ def delete_document(
         )
     document = crud.documents.delete(db, id=id)
     return document
+

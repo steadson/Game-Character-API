@@ -1,7 +1,7 @@
 import os
 from typing import Any, Dict, Optional, Union, List
 import uuid
-
+from datetime import datetime, timedelta
 from sqlalchemy.orm import Session
 from app.services.chroma_utils import delete_from_chroma
 
@@ -156,3 +156,27 @@ def delete(db: Session, *, id: int) -> Document:
 def get_by_user(db: Session, *, user_id: int) -> List[Document]:
     """Get all documents uploaded by a specific user."""
     return db.query(Document).filter(Document.uploaded_by == user_id).all()
+
+def get_url_documents_for_refresh(db: Session, max_age_hours: Optional[int] = None):
+    """
+    Get all URL documents that need refreshing.
+    
+    Args:
+        db: Database session
+        max_age_hours: If provided, only return documents that haven't been refreshed 
+                      in the last max_age_hours
+    
+    Returns:
+        List of Document objects that are URLs and need refreshing
+    """
+    query = db.query(Document).filter(Document.content_type == ContentType.LINK)
+    
+    if max_age_hours is not None:
+        cutoff_time = datetime.utcnow() - timedelta(hours=max_age_hours)
+        # Get documents that have never been refreshed or were refreshed before the cutoff time
+        query = query.filter(
+            (Document.last_refreshed.is_(None)) | 
+            (Document.last_refreshed < cutoff_time)
+        )
+    
+    return query.all()
