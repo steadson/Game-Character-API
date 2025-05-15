@@ -64,6 +64,10 @@ class DocumentRefreshScheduler:
     
     async def _refresh_documents(self):
         """Refresh all URL documents in batches."""
+        # Check if already running to prevent duplicate refreshes
+        if self.is_running:
+            logger.info("Document refresh already in progress. Skipping this request.")
+            return
         logger.info("Starting scheduled document refresh")
 
         db = SessionLocal()
@@ -119,11 +123,49 @@ class DocumentRefreshScheduler:
 # Create a global instance of the scheduler
 document_scheduler = DocumentRefreshScheduler()
 
+# async def initialize_scheduler():
+#     """Initialize the document scheduler with default settings."""
+#     # Default to 24 hours if not specified in settings
+#     refresh_interval = getattr(settings, "DOCUMENT_REFRESH_INTERVAL_HOURS", 24)
+#     await document_scheduler.start(refresh_interval)
+# Update the existing initialize_scheduler function
 async def initialize_scheduler():
-    """Initialize the document scheduler with default settings."""
-    # Default to 24 hours if not specified in settings
-    refresh_interval = getattr(settings, "DOCUMENT_REFRESH_INTERVAL_HOURS", 24)
+    """Initialize and start the document refresh scheduler."""
+    global document_scheduler
+    
+    # if document_scheduler is None:
+    #     document_scheduler = DocumentRefreshScheduler()
+
+    # Check if scheduler is already running to prevent duplicate tasks
+    if document_scheduler.is_enabled and document_scheduler.task and not document_scheduler.task.done():
+        logger.info("Document scheduler is already running. Skipping initialization.")
+        return document_scheduler
+    
+    # Load settings from database or use defaults
+    refresh_interval = 24  # Default to 24 hours
+    
+    # Start the scheduler with the configured interval
     await document_scheduler.start(refresh_interval)
+    
+    logger.info(f"Document refresh scheduler initialized and started with interval of {refresh_interval} hours")
+    return document_scheduler
+# Add this new function after the existing initialize_scheduler function
+async def initialize_scheduler_without_autostart():
+    """Initialize the document refresh scheduler without auto-starting it."""
+    global document_scheduler
+    
+    # Create the scheduler if it doesn't exist
+    if document_scheduler is None:
+        document_scheduler = DocumentRefreshScheduler()
+
+    
+        
+    # Set default refresh interval but don't start the scheduler
+    document_scheduler.refresh_interval = 24  # Default to 24 hours
+    document_scheduler.is_enabled = False  # Make sure it's disabled by default
+    
+    logger.info("Document refresh scheduler initialized in disabled state")
+    return document_scheduler
 
 async def update_refresh_interval(hours: int, enabled: bool = True):
     """Update the refresh interval and enable/disable the scheduler."""

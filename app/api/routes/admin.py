@@ -576,7 +576,12 @@ async def trigger_document_refresh(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Not enough permissions"
         )
-    
+    # Check if a refresh is already in progress
+    if document_scheduler.is_running:
+        return {
+            "status": "in_progress", 
+            "message": "Document refresh is already in progress. Please wait for it to complete."
+        }
     # Trigger the refresh process
     asyncio.create_task(document_scheduler._refresh_documents())
     return {"status": "success", "message": "Document refresh process started"}

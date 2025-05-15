@@ -11,7 +11,7 @@ from app.db.base import Base
 from app.core.config import settings
 from app.dependencies import get_db
 from app.api.routes import public_chat
-from app.services.scheduler import initialize_scheduler
+# from app.services.scheduler import initialize_scheduler
 
 
 # Configure root logger
@@ -59,10 +59,16 @@ app.include_router(public_chat.router, tags=["public"])
 
 
 # Add startup and shutdown event handlers
+# @app.on_event("startup")
+# async def startup_event():
+#     # Initialize the document refresh scheduler
+#     await initialize_scheduler()
+
 @app.on_event("startup")
 async def startup_event():
-    # Initialize the document refresh scheduler
-    await initialize_scheduler()
+    # Initialize the document refresh scheduler without auto-starting
+    from app.services.scheduler import initialize_scheduler_without_autostart
+    await initialize_scheduler_without_autostart()
 
 @app.on_event("shutdown")
 async def shutdown_event():

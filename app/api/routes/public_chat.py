@@ -2,7 +2,7 @@ from typing import Any, Dict, List
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
-
+# from app.services.embedding import hybrid_query_documents 
 from app.db.session import get_db
 from app.dependencies import get_api_key
 from app.crud import characters, conversation
@@ -59,12 +59,33 @@ async def public_chat(
     relevant_docs = await query_documents(
         character_id=character.character_id,
         query_text=chat_request.message, # Changed 'query' to 'query_text'
-        top_k=20                         # Changed 'limit' to 'top_k'
+        top_k=7                         # Changed 'limit' to 'top_k'
     )
-    
-    # Extract context from relevant docs
-    context = "\n\n".join([doc["text"] for doc in relevant_docs])
-    print ('Documents retrived >>', context)
+    # relevant_docs = await hybrid_query_documents(
+    # character_id=character.character_id,
+    # query_text=chat_request.message,
+    # top_k=7)
+    # Extract context from relevant docs with metadata
+    formatted_docs = []
+    for doc in relevant_docs:
+        # Format each document with its metadata
+        doc_text = f"Source: {doc['metadata'].get('document_title', 'Unknown')}"
+        
+        # Add URL if available
+        if 'url' in doc['metadata']:
+            doc_text += f" (URL: {doc['metadata']['url']})"
+        
+        # # Add relevance score
+        # doc_text += f"\nRelevance: {doc['relevance_score']:.2f}\n\n"
+        
+        # Add the actual content
+        doc_text += doc['text']
+        
+        formatted_docs.append(doc_text)
+
+    # Join all formatted documents
+    context = "\n\n---\n\n".join(formatted_docs)
+    print ('Documents retrieved >>', context)
 
     # Generate response using LLM
     response = await generate_response(

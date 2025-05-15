@@ -227,8 +227,70 @@ async def query_documents(query_text: str, top_k: int = 5, character_id: Optiona
         logger.error(f"Error querying documents: {str(e)}")
         return []
 
-
-
+# async def hybrid_query_documents(query_text: str, top_k: int = 5, character_id: Optional[int] = None) -> List[Dict[str, Any]]:
+#     """
+#     Perform hybrid search combining vector similarity and keyword matching
+    
+#     Args:
+#         query_text: The query text to search for
+#         top_k: Number of results to return
+#         character_id: Optional character ID to filter results
+        
+#     Returns:
+#         List of relevant document chunks with metadata
+#     """
+#     logger.info(f"Performing hybrid search with: '{query_text}'")
+    
+#     try:
+#         # Get the collection
+#         collection = chroma_client.get_collection(name=collection_name)
+        
+#         # Create embedding for the query (do this only once)
+#         response = openai_client.embeddings.create(
+#             input=query_text,
+#             model="text-embedding-3-large"
+#         )
+#         query_embedding = response.data[0].embedding
+        
+#         # Perform a single hybrid search using ChromaDB's built-in capabilities
+#         filter_dict = {}
+#         if character_id is not None:
+#             filter_dict["character_id"] = character_id
+            
+#         results = collection.query(
+#             query_embeddings=[query_embedding],
+#             query_texts=[query_text],  # Add text query for hybrid search
+#             n_results=top_k,
+#             where=filter_dict if filter_dict else None,
+#             include=["documents", "metadatas", "distances"]
+#         )
+        
+#         # Format results
+#         formatted_results = []
+#         if results and results["documents"] and len(results["documents"][0]) > 0:
+#             for i, (doc, metadata, distance) in enumerate(zip(
+#                 results["documents"][0], 
+#                 results["metadatas"][0],
+#                 results["distances"][0]
+#             )):
+#                 formatted_results.append({
+#                     "text": doc,
+#                     "metadata": metadata,
+#                     "relevance_score": 1.0 - distance,  # Convert distance to similarity score
+#                     "rank": i + 1
+#                 })
+            
+#             logger.info(f"Hybrid search found {len(formatted_results)} relevant document chunks")
+#         else:
+#             logger.info("No relevant documents found")
+            
+#         return formatted_results
+        
+#     except Exception as e:
+#         logger.error(f"Error in hybrid search: {str(e)}")
+#         # Fall back to regular vector search
+#         logger.info("Falling back to vector search")
+#         return await query_documents(query_text, top_k=top_k, character_id=character_id)
 def extract_text_from_pdf(file_path: str) -> str:
     """Extract text from PDF files"""
     logger.info(f"Extracting text from PDF: {file_path}")
@@ -723,15 +785,24 @@ async def create_embeddings(chunks: List[Dict], document: Document) -> None:
         # Extract data for embedding
         ids = [chunk["id"] for chunk in batch]
         texts = [chunk["text"] for chunk in batch]
-        metadatas = [{
-            "title": chunk["title"],
-            "doc_id": chunk["doc_id"],
-            "chunk_index": chunk["chunk_index"],
-            "document_title": document.title,
-            "document_type": document.document_type.value,
-            "original_filename": document.original_filename,
-            "timestamp": datetime.now().isoformat()
-        } for chunk in batch]
+        # Create metadata with URL for link documents
+        metadatas = []
+        for chunk in batch:
+            metadata = {
+                "title": chunk["title"],
+                "doc_id": chunk["doc_id"],
+                "chunk_index": chunk["chunk_index"],
+                "document_title": document.title,
+                "document_type": document.document_type.value,
+                "original_filename": document.original_filename,
+                "timestamp": datetime.now().isoformat()
+            }
+            
+            # Add URL to metadata if it's a link document
+            if document.content_type == ContentType.LINK:
+                metadata["url"] = document.file_path
+                
+            metadatas.append(metadata)
         
         try:
             # Create embeddings

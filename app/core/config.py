@@ -15,7 +15,7 @@ class Settings(BaseSettings):
     PUBLIC_API_KEY: str = os.getenv("PUBLIC_API_KEY", "42f27353fg4624f846ge64wdfg4y49iw")
     # 60 minutes * 24 hours * 8 days = 8 days
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 8
-    SUPER_ADMIN_SECRET_TOKEN: str = "12345678" # CHANGE THIS!
+    SUPER_ADMIN_SECRET_TOKEN: str =os.getenv("SUPER_ADMIN_SECRET_TOKEN", "12345678")  # CHANGE THIS!
 
     SERVER_HOST: AnyHttpUrl = "http://localhost:8000"
     

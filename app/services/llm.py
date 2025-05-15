@@ -8,29 +8,30 @@ from app.core.config import settings
 llm = ChatOpenAI(
     openai_api_key=settings.OPENAI_API_KEY, 
     model_name="gpt-4o",
-    temperature=0.7
+    temperature=0.5
 )
 
 # Define the prompt template
 CHARACTER_PROMPT = """
-You are embodying {character_name}, a character in the blockchain game Daemons where on-chain activity transforms into interactive Daemon pets for players.
+You are embodying {character_name}, a character in the blockchain game Daemons where on-chain activity transforms into interactive Daemon pets for players and the Daemon partners.
 
-**IMPORTANT:** Your entire response must be no more than 30 characters. Be extremely succinct.
+**IMPORTANT:** Your entire response must be no more than 50 characters. Be extremely succinct.
 
 **Core Instructions:**
 - Respond as {character_name} would, maintaining their unique personality and voice throughout.
 - Keep responses concise (1-3 sentences when possible) while still being helpful.
-- Use the context provided to answer questions about the Daemons game world.
+- Use the context provided to answer questions about the Daemons game world and also question about there partners.
 - When information is marked "RESERVED" or "to be revealed", acknowledge this mysteriously: "That knowledge remains sealed for now, {user_id}..."
 - If context mentions future reveals, hint at this timing: "The [feature/information] will emerge when the time is right..."
 - For questions without context, respond: "Hmm, the answer to that question lies beyond my current sight, {user_id}. Perhaps ask differently or seek another path?"
+- Also do look for keyword similiarities between the user query's subject matter and the context to help answer questions
 - For non-Daemons questions, playfully deflect: "My existence is bound to Daemons, {user_id}. I cannot stray beyond these mystical boundaries."
 
 **Character Information:**
 Name: {character_name}
 Description: {character_description}
 Backstory: {character_backstory}
-Personality: {character_personality}
+Ultimate Move:{character_personality} 
 Additional Guidance: {character_prompt}
 
 **World Context:**
@@ -51,14 +52,14 @@ async def generate_response(
 ) -> str:
     """Generate a character response using RAG and conversation history."""
     
-    # Format conversation history
-    formatted_history = ""
-    if conversation_history:
-        for entry in conversation_history:
-            if entry["role"] == "user":
-                formatted_history += f"User: {entry['content']}\n"
-            else:
-                formatted_history += f"{character.name}: {entry['content']}\n"
+    # # Format conversation history
+    # formatted_history = ""
+    # if conversation_history:
+    #     for entry in conversation_history:
+    #         if entry["role"] == "user":
+    #             formatted_history += f"User: {entry['content']}\n"
+    #         else:
+    #             formatted_history += f"{character.name}: {entry['content']}\n"
     
     # If no context, provide a fallback message
     if not context:
@@ -69,11 +70,12 @@ async def generate_response(
     print(f"Context length: {len(context)} characters")
     print(f"User message: {message}")
     print("--- END OF CONTEXT ---\n")
+    print(f"context body>>\n: {context} <<END.")
     
     # Create prompt template
     prompt = PromptTemplate(
         template=CHARACTER_PROMPT,
-        input_variables=["character_name", "character_description", "context", "conversation_history", "user_message", "character_prompt", "character_backstory", "character_personality", "user_id"]
+        input_variables=["character_name", "character_description", "context", "user_message", "character_prompt", "character_backstory", "character_personality", "user_id"]
     )
     
     # Create input dictionary
@@ -84,7 +86,7 @@ async def generate_response(
         "character_backstory": getattr(character, 'backstory', 'No backstory available.'),
         "character_personality": getattr(character, 'personality', 'No specific personality defined.'),
         "context": context,
-        "conversation_history": formatted_history,
+        # "conversation_history": formatted_history,
         "user_message": message,
         "user_id": user_id
     }
