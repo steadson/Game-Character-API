@@ -338,6 +338,51 @@
                     </div>
                 </div>
                 
+                <div class="form-group">
+                    <label for="security_question_1">Security Question 1</label>
+                    <div class="input-container">
+                        <i class="fas fa-question-circle"></i>
+                        <select id="security_question_1" class="form-control" required>
+                            <option value="">Select a security question</option>
+                            <option value="What was the name of your first pet?">What was the name of your first pet?</option>
+                            <option value="What is your mother's maiden name?">What is your mother's maiden name?</option>
+                            <option value="What city were you born in?">What city were you born in?</option>
+                            <option value="What was the name of your elementary school?">What was the name of your elementary school?</option>
+                            <option value="What is your favorite movie?">What is your favorite movie?</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="security_answer_1">Answer to Security Question 1</label>
+                    <div class="input-container">
+                        <i class="fas fa-key"></i>
+                        <input type="text" id="security_answer_1" class="form-control" placeholder="Enter your answer" required>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="security_question_2">Security Question 2</label>
+                    <div class="input-container">
+                        <i class="fas fa-question-circle"></i>
+                        <select id="security_question_2" class="form-control" required>
+                            <option value="">Select a security question</option>
+                            <option value="What was your childhood nickname?">What was your childhood nickname?</option>
+                            <option value="What is the name of your best friend?">What is the name of your best friend?</option>
+                            <option value="What was your first car?">What was your first car?</option>
+                            <option value="What is your favorite food?">What is your favorite food?</option>
+                            <option value="What street did you grow up on?">What street did you grow up on?</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="security_answer_2">Answer to Security Question 2</label>
+                    <div class="input-container">
+                        <i class="fas fa-key"></i>
+                        <input type="text" id="security_answer_2" class="form-control" placeholder="Enter your answer" required>
+                    </div>
+                </div>
                 <div class="form-check">
                     <input type="checkbox" class="form-check-input" id="is_super_admin_check">
                     <label class="form-check-label" for="is_super_admin_check">Register as Super Admin?</label>
@@ -446,6 +491,10 @@
                 email: email,
                 password: password,
                 full_name: fullName,
+                security_question_1: document.getElementById('security_question_1').value,
+                security_answer_1: document.getElementById('security_answer_1').value,
+                security_question_2: document.getElementById('security_question_2').value,
+                security_answer_2: document.getElementById('security_answer_2').value,
                 // Only include secret_token if the checkbox is checked
                 ...(isSuperAdminChecked && { secret_token: secretToken })
             };

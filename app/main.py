@@ -83,6 +83,9 @@ async def root(request: Request):
 @app.get("/register", response_class=HTMLResponse)
 async def register(request: Request):
     return templates.TemplateResponse("register.html", {"request": request})
+@app.get("/forgot-password", response_class=HTMLResponse)
+async def forgot_password_page(request: Request):
+    return templates.TemplateResponse("forgot_password.html", {"request": request})
 @app.get("/dashboard", response_class=HTMLResponse)
 async def dashboard(request:Request):
     return templates.TemplateResponse("dashboard.html", {"request":request})

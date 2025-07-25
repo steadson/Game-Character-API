@@ -42,13 +42,18 @@ def create(db: Session, *, obj_in: UserCreate) -> User:
     db_model_data = {
         "email": obj_in.email,
         "username": obj_in.username,
-        #"full_name": obj_in.full_name,
+        "full_name": obj_in.full_name,
         "hashed_password": get_password_hash(obj_in.password),
         # Use values from obj_in, falling back to defaults if necessary
         "is_active": obj_in.is_active if obj_in.is_active is not None else True,
         "is_admin": obj_in.is_admin,
         "is_super_admin": obj_in.is_super_admin,
         "is_approved": obj_in.is_approved,
+        # Security questions
+        "security_question_1": obj_in.security_question_1,
+        "security_answer_1": get_password_hash(obj_in.security_answer_1) if obj_in.security_answer_1 else None,
+        "security_question_2": obj_in.security_question_2,
+        "security_answer_2": get_password_hash(obj_in.security_answer_2) if obj_in.security_answer_2 else None,
     }
     # --- Modification End ---
 
@@ -71,9 +76,15 @@ def update(
         hashed_password = get_password_hash(update_data["password"])
         del update_data["password"]
         update_data["hashed_password"] = hashed_password
+    # Handle security answer hashing (only if they're being updated with new values)
+    if update_data.get("security_answer_1"):
+        update_data["security_answer_1"] = get_password_hash(update_data["security_answer_1"])
+    
+    if update_data.get("security_answer_2"):
+        update_data["security_answer_2"] = get_password_hash(update_data["security_answer_2"])
     for field in update_data:
-        if field in update_data:
-            setattr(db_obj, field, update_data[field])
+       
+        setattr(db_obj, field, update_data[field])
     db.add(db_obj)
     db.commit()
     db.refresh(db_obj)
@@ -97,3 +108,43 @@ def is_active(user: User) -> bool:
 
 def is_admin(user: User) -> bool:
     return user.is_admin
+
+# New function for password reset
+def verify_security_answers(db: Session, *, username: Optional[str] = None, email: Optional[str] = None, answer_1: str, answer_2: str) -> Optional[User]:
+    """Verify security question answers for password reset"""
+    if email:
+        user = get_by_email(db, email=email)
+    elif username:
+        user = get_by_username(db, username=username)
+    else:
+        return None
+    if not user:
+        return None
+    
+    if not user.security_answer_1 or not user.security_answer_2:
+        return None
+    # Debug: Print hashed values (remove in production)
+    print(f"Stored answer 1 hash: {user.security_answer_1}")
+    print(f"Stored answer 2 hash: {user.security_answer_2}")
+    print(f"Verifying answer 1: {answer_1}")
+    print(f"Verifying answer 2: {answer_2}")
+    
+    if not verify_password(answer_1, user.security_answer_1):
+        print("Answer 1 verification failed")
+        return None
+    
+    
+    if not verify_password(answer_2, user.security_answer_2):
+        print("Answer 2 verification failed")
+        return None
+    
+    return user
+
+
+def reset_password(db: Session, *, user: User, new_password: str) -> User:
+    """Reset user password"""
+    user.hashed_password = get_password_hash(new_password)
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    return user

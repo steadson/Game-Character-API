@@ -8,8 +8,10 @@ from sqlalchemy.orm import Session
 from app.models.user import User
 from app import crud, models, schemas
 from app.core import security
+from app.core.security import verify_password
 from app.core.config import settings
-from app.dependencies import get_current_user
+from app.schemas.admin_secret import AdminSecretRequest, AdminSecretCreate
+from app.dependencies import get_current_user, get_current_super_admin_user
 from app.db.session import get_db
 
 templates = Jinja2Templates(directory="app/static/templates")
@@ -80,7 +82,9 @@ def register_user(
     is_approved = False
     is_admin = False # Default admin status to False
     if user_in.secret_token:
-        if user_in.secret_token == settings.SUPER_ADMIN_SECRET_TOKEN:
+        # Get current active secret or use default from .env
+        current_secret = crud.admin_secret.get_current_secret_token(db, settings.SUPER_ADMIN_SECRET_TOKEN)
+        if user_in.secret_token == current_secret:
             is_super_admin = True
             is_approved = True
             is_admin = True # Super admins are also admins
@@ -103,7 +107,12 @@ def register_user(
         is_active=True, # Default new users to active (approval is separate)
         is_admin=is_admin,
         is_super_admin=is_super_admin,
-        is_approved=is_approved
+        is_approved=is_approved,
+        # Security questions
+        security_question_1=user_in.security_question_1,
+        security_answer_1=user_in.security_answer_1,
+        security_question_2=user_in.security_question_2,
+        security_answer_2=user_in.security_answer_2
         # Note: secret_token is intentionally omitted
     )
 
@@ -114,6 +123,70 @@ def register_user(
     # user = crud.users.create(db, obj_in=user_in)
     # return user
 
+# New password reset endpoints
+@router.post("/auth/forgot-password")
+def forgot_password(
+    *,
+    db: Session = Depends(get_db),
+    request: schemas.PasswordResetRequest,
+) -> Any:
+    """
+    Get security questions for password reset
+    """
+    if request.email:
+        user = crud.users.get_by_email(db, email=request.email)
+    elif request.username:
+        user = crud.users.get_by_username(db, username=request.username)
+    else:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Either email or username must be provided",
+        )
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found",
+        )
+    
+    if not user.security_question_1 or not user.security_question_2:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Security questions not set for this user",
+        )
+    
+    return {
+        "security_question_1": user.security_question_1,
+        "security_question_2": user.security_question_2
+    }
+
+
+@router.post("/auth/reset-password")
+def reset_password(
+    *,
+    db: Session = Depends(get_db),
+    request: schemas.PasswordResetVerify,
+) -> Any:
+    """
+    Reset password using security question answers
+    """
+    user = crud.users.verify_security_answers(
+        db, 
+        username=request.username, 
+        email=request.email,
+        answer_1=request.answer_1, 
+        answer_2=request.answer_2
+    )
+    
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid username/email or security answers",
+        )
+    
+    # Reset the password
+    crud.users.reset_password(db, user=user, new_password=request.new_password)
+    
+    return {"message": "Password reset successfully"}
 
 @router.get("/users/me", response_model=schemas.User)
 def read_users_me(
@@ -123,3 +196,71 @@ def read_users_me(
     Get current user
     """
     return current_user
+
+@router.put("/users/me", response_model=schemas.User)
+def update_user_me(
+    *,
+    db: Session = Depends(get_db),
+    user_in: schemas.UserProfileUpdate,
+    current_user: User = Depends(get_current_user),
+) -> Any:
+    """
+    Update own user profile.
+    """
+    # Check if email/username already exists for other users
+    if user_in.email and user_in.email != current_user.email:
+        existing_user = crud.users.get_by_email(db, email=user_in.email)
+        if existing_user and existing_user.id != current_user.id:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="A user with this email already exists",
+            )
+    
+    if user_in.username and user_in.username != current_user.username:
+        existing_user = crud.users.get_by_username(db, username=user_in.username)
+        if existing_user and existing_user.id != current_user.id:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="A user with this username already exists",
+            )
+    
+    user = crud.users.update(db, db_obj=current_user, obj_in=user_in)
+    return user
+
+@router.put("/admin/secret")
+def update_admin_secret(
+    *,
+    db: Session = Depends(get_db),
+    request: AdminSecretRequest,
+    current_user: User = Depends(get_current_super_admin_user),
+) -> Any:
+    """
+    Update the admin secret token (super admin only)
+    """
+    # Verify the current user's password
+    if not verify_password(request.password, current_user.hashed_password):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Incorrect password",
+        )
+    
+    if request.use_default:
+        # Use default secret from .env
+        secret_token = settings.SUPER_ADMIN_SECRET_TOKEN
+    else:
+        if not request.custom_secret:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Custom secret token is required",
+            )
+        secret_token = request.custom_secret
+    
+    # Create new admin secret
+    secret_create = schemas.AdminSecretCreate(
+        secret_token=secret_token,
+        created_by=current_user.id
+    )
+    
+    crud.admin_secret.create(db, obj_in=secret_create)
+    
+    return {"message": "Admin secret updated successfully"}
