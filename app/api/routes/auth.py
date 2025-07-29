@@ -65,13 +65,19 @@ def register_user(
     Super admins are created if the correct secret token is provided.
     Regular users require approval.
     """
-    user = crud.users.get_by_email(db, email=user_in.email)
+    # Strip trailing spaces and convert to lowercase for email and username
+    email = user_in.email.strip().lower() if user_in.email else None
+    username = user_in.username.strip().lower() if user_in.username else None
+    full_name = user_in.full_name.strip() if user_in.full_name else None
+    
+    # Check for existing users with cleaned data
+    user = crud.users.get_by_email(db, email=email)
     if user:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="A user with this email already exists",
         )
-    user = crud.users.get_by_username(db, username=user_in.username)
+    user = crud.users.get_by_username(db, username=username)
     if user:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -85,6 +91,13 @@ def register_user(
         # Get current active secret or use default from .env
         current_secret = crud.admin_secret.get_current_secret_token(db, settings.SUPER_ADMIN_SECRET_TOKEN)
         if user_in.secret_token == current_secret:
+            # Check if we already have 2 super admins
+            super_admin_count = crud.users.get_super_admin_count(db)
+            if super_admin_count >= 2:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Maximum number of super administrators (2) already exists. Cannot create more super admin accounts.",
+                )
             is_super_admin = True
             is_approved = True
             is_admin = True # Super admins are also admins
@@ -94,35 +107,33 @@ def register_user(
                  status_code=status.HTTP_400_BAD_REQUEST,
                  detail="Incorrect secret token provided.",
              )
-    # Create user object for CRUD operation
-    # We create a dictionary to avoid modifying the input Pydantic model directly
     
+    # Clean and prepare security questions and answers
+    security_question_1 = user_in.security_question_1.strip() if user_in.security_question_1 else None
+    security_answer_1 = user_in.security_answer_1.strip().lower() if user_in.security_answer_1 else None
+    security_question_2 = user_in.security_question_2.strip() if user_in.security_question_2 else None
+    security_answer_2 = user_in.security_answer_2.strip().lower() if user_in.security_answer_2 else None
 
-    # Use the dictionary to create the UserCreate schema for the CRUD function
+    # Use the cleaned data to create the UserCreate schema for the CRUD function
     user_to_create = schemas.UserCreate(
-        email=user_in.email,
-        username=user_in.username,
-        password=user_in.password, # Pass the raw password for hashing in CRUD
-        full_name=user_in.full_name,
+        email=email,
+        username=username,
+        password=user_in.password, # Keep password as-is for security
+        full_name=full_name,
         is_active=True, # Default new users to active (approval is separate)
         is_admin=is_admin,
         is_super_admin=is_super_admin,
         is_approved=is_approved,
-        # Security questions
-        security_question_1=user_in.security_question_1,
-        security_answer_1=user_in.security_answer_1,
-        security_question_2=user_in.security_question_2,
-        security_answer_2=user_in.security_answer_2
+        # Security questions with cleaned data
+        security_question_1=security_question_1,
+        security_answer_1=security_answer_1,
+        security_question_2=security_question_2,
+        security_answer_2=security_answer_2
         # Note: secret_token is intentionally omitted
     )
 
     user = crud.users.create(db, obj_in=user_to_create)
     return user
-    # By default, new users are not admins
-    # user_in.is_admin = False
-    # user = crud.users.create(db, obj_in=user_in)
-    # return user
-
 # New password reset endpoints
 @router.post("/auth/forgot-password")
 def forgot_password(

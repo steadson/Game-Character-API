@@ -1189,6 +1189,7 @@
     <!-- Bootstrap JS Bundle with Popper -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
     <script>
+        let currentUser = null;
         // Mobile sidebar toggle
         document.getElementById('mobile-toggle').addEventListener('click', function () {
             document.getElementById('sidebar').classList.add('active');
@@ -1437,46 +1438,7 @@
         }
         // Add this after your setupNavigation function
 
-        // // Function to load document refresh settings
-        // async function loadDocumentRefreshSettings() {
-        //     try {
-        //         const response = await fetch('/api/v1/document-refresh/settings', {
-        //             headers: {
-        //                 'Authorization': `Bearer ${localStorage.getItem('access_token')}`
-        //             }
-        //         });
-
-        //         if (!response.ok) {
-        //             throw new Error('Failed to load refresh settings');
-        //         }
-
-        //         const settings = await response.json();
-        //         console.log('Refresh settings:', settings);
-
-        //         // Update the form with the current settings
-        //         document.getElementById('refresh-interval').value = settings.hours;
-        //         document.getElementById('auto-refresh-toggle').checked = settings.enabled;
-
-        //         // Update last refresh time display
-        //         if (settings.last_refresh) {
-        //             const lastRefreshDate = new Date(settings.last_refresh);
-        //             document.getElementById('last-refresh-time').textContent = lastRefreshDate.toLocaleString();
-        //         } else {
-        //             document.getElementById('last-refresh-time').textContent = 'Never';
-        //         }
-
-        //         // Update refresh status
-        //         document.getElementById('refresh-result').textContent = 
-        //             settings.status === 'in_progress' ? 'Refresh in progress...' : 'Completed';
-
-        //         // Show/hide refresh status card
-        //         document.getElementById('refresh-status-card').style.display = 
-        //             settings.status === 'in_progress' ? 'block' : 'none';
-        //     } catch (error) {
-        //         console.error('Error loading refresh settings:', error);
-        //         document.getElementById('last-refresh-time').textContent = 'Error loading settings';
-        //     }
-        // }
+        
 
         // Function to setup document section
         function setupDocumentSection() {
@@ -1698,6 +1660,7 @@
                 }
 
                 const userData = await response.json();
+                currentUser = userData; // Store globally
                 document.getElementById('user-name').textContent = userData.username;
             } catch (error) {
                 console.error('Error loading user profile:', error);
@@ -3969,12 +3932,16 @@ function showProfileMessage(type, message) {
                                         <i class="fas fa-check"></i> Approve
                                     </button>` : ''}
                                 ${user.is_active ? 
-                                    `<button class="btn btn-warning btn-sm deactivate-user" data-id="${user.id}">
-                                        <i class="fas fa-ban"></i> Deactivate
-                                    </button>` : 
-                                    `<button class="btn btn-success btn-sm activate-user" data-id="${user.id}">
-                                        <i class="fas fa-check"></i> Activate
-                                    </button>`}
+                `<button class="btn btn-warning btn-sm deactivate-user" data-id="${user.id}">
+                    <i class="fas fa-ban"></i> Deactivate
+                </button>` : 
+                `<button class="btn btn-success btn-sm activate-user" data-id="${user.id}">
+                    <i class="fas fa-check"></i> Activate
+                </button>`}
+            ${currentUser && currentUser.is_super_admin ? 
+                `<button class="btn btn-danger btn-sm delete-user" data-id="${user.id}" data-username="${user.username}">
+                    <i class="fas fa-trash"></i>
+                </button>` : ''}
                             </div>
                         </td>
                     `;
@@ -4003,6 +3970,7 @@ function showProfileMessage(type, message) {
         }
 
         function setupUserActionListeners() {
+            
             // View user
             document.querySelectorAll('.view-user').forEach(btn => {
                 btn.addEventListener('click', function () {
@@ -4034,7 +4002,67 @@ function showProfileMessage(type, message) {
                     activateUser(userId);
                 });
             });
+            
+            // Delete user
+    document.querySelectorAll('.delete-user').forEach(btn => {
+        btn.addEventListener('click', function () {
+            const userId = this.getAttribute('data-id');
+            const username = this.getAttribute('data-username');
+            showDeleteUserModal(userId, username);
+        });
+    });
+        
         }
+        // Add these new functions
+function showDeleteUserModal(userId, username) {
+    document.getElementById('delete-user-username').textContent = username;
+    document.getElementById('confirm-delete-user-btn').setAttribute('data-id', userId);
+    document.getElementById('deleteUserModal').style.display = 'block';
+}
+
+async function deleteUser(userId) {
+    try {
+        const response = await fetch(`/api/v1/admin/users/${userId}`, {
+            method: 'DELETE',
+            headers: {
+                'Authorization': `Bearer ${localStorage.getItem('access_token')}`
+            }
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.detail || 'Failed to delete user');
+        }
+
+        // Close modal
+        document.getElementById('deleteUserModal').style.display = 'none';
+        
+        // Show success message
+        const successMsg = document.getElementById('user-success-message');
+        successMsg.textContent = 'User deleted successfully';
+        successMsg.style.display = 'block';
+        setTimeout(() => {
+            successMsg.style.display = 'none';
+        }, 5000);
+
+        // Reload users table
+        loadAllUsers();
+
+    } catch (error) {
+        console.error('Error deleting user:', error);
+        
+        // Close modal
+        document.getElementById('deleteUserModal').style.display = 'none';
+        
+        // Show error message
+        const errorMsg = document.getElementById('user-error-message');
+        errorMsg.textContent = error.message || 'Failed to delete user';
+        errorMsg.style.display = 'block';
+        setTimeout(() => {
+            errorMsg.style.display = 'none';
+        }, 5000);
+    }
+}
 
         async function viewUser(userId) {
             try {
@@ -4176,6 +4204,25 @@ function showProfileMessage(type, message) {
                 document.getElementById('userDetailsModal').style.display = 'none';
                 activateUser(userId);
             });
+        // Delete user modal event listeners
+    document.querySelectorAll('#deleteUserModal .close, .cancel-delete-btn').forEach(element => {
+        element.addEventListener('click', function () {
+            document.getElementById('deleteUserModal').style.display = 'none';
+        });
+    });
+
+    // Close modal when clicking outside of it
+    window.addEventListener('click', function (event) {
+        if (event.target === document.getElementById('deleteUserModal')) {
+            document.getElementById('deleteUserModal').style.display = 'none';
+        }
+    });
+
+    // Confirm delete button
+    document.getElementById('confirm-delete-user-btn').addEventListener('click', function () {
+        const userId = this.getAttribute('data-id');
+        deleteUser(userId);
+    });
         });
 
         async function loadUserCharacters(userId) {
@@ -4749,6 +4796,36 @@ function showProfileMessage(type, message) {
 
 
 
+
+
+<!-- Delete User Confirmation Modal -->
+<div class="modal" id="deleteUserModal">
+    <div class="modal-content" style="max-width: 500px;">
+        <div class="modal-header">
+            <h5 class="modal-title">Confirm User Deletion</h5>
+            <span class="close">&times;</span>
+        </div>
+        <div class="modal-body">
+            <div class="text-center mb-3">
+                <i class="fas fa-exclamation-triangle" style="font-size: 3rem; color: #dc3545;"></i>
+            </div>
+            <h5 class="text-center mb-3">Are you sure you want to delete this user?</h5>
+            <p class="text-center text-muted mb-3">
+                User: <strong id="delete-user-username"></strong>
+            </p>
+            <div class="alert alert-danger">
+                <i class="fas fa-exclamation-circle"></i>
+                <strong>Warning:</strong> This action cannot be undone. All user data, including their characters and documents, will be permanently deleted.
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button type="button" class="btn btn-secondary cancel-delete-btn">Cancel</button>
+            <button type="button" class="btn btn-danger" id="confirm-delete-user-btn">
+                <i class="fas fa-trash"></i> Delete User
+            </button>
+        </div>
+    </div>
+</div>
 </body>
 
 </html>

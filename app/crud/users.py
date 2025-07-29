@@ -140,7 +140,9 @@ def verify_security_answers(db: Session, *, username: Optional[str] = None, emai
     
     return user
 
-
+def get_super_admin_count(db: Session) -> int:
+    """Get the count of existing super admin users"""
+    return db.query(User).filter(User.is_super_admin == True).count()
 def reset_password(db: Session, *, user: User, new_password: str) -> User:
     """Reset user password"""
     user.hashed_password = get_password_hash(new_password)
@@ -148,3 +150,10 @@ def reset_password(db: Session, *, user: User, new_password: str) -> User:
     db.commit()
     db.refresh(user)
     return user
+def delete(db: Session, *, id: int) -> User:
+    """Delete a user by ID"""
+    obj = db.query(User).get(id)
+    if obj:
+        db.delete(obj)
+        db.commit()
+    return obj

@@ -634,3 +634,36 @@ def delete_document(
     document = crud.documents.delete(db, id=id)
     return document
 
+@router.delete("/admin/users/{user_id}", response_model=schemas.User)
+def delete_user(
+    user_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_super_admin_user),
+) -> Any:
+    """
+    Delete a user (super admin only)
+    """
+    user = crud.users.get(db, id=user_id)
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found",
+        )
+    
+    # Prevent deleting yourself
+    if user.id == current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="You cannot delete your own account",
+        )
+    
+    # Prevent deleting other super admins (optional security measure)
+    # if user.is_super_admin:
+    #     raise HTTPException(
+    #         status_code=status.HTTP_400_BAD_REQUEST,
+    #         detail="Cannot delete super admin accounts",
+    #     )
+    
+    deleted_user = crud.users.delete(db, id=user_id)
+    return deleted_user
+
